@@ -46,7 +46,12 @@
 #define TX_MACRO_DMIC_UNMUTE_DELAY_MS	40
 #define TX_MACRO_AMIC_UNMUTE_DELAY_MS	100
 #define TX_MACRO_DMIC_HPF_DELAY_MS	300
+#ifdef OEM_TARGET_PRODUCT_EBBA
+#define TX_MACRO_AMIC_HPF_DELAY_MS	100
+#else
 #define TX_MACRO_AMIC_HPF_DELAY_MS	300
+#endif
+
 
 static int tx_unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 module_param(tx_unmute_delay, int, 0664);
@@ -234,11 +239,11 @@ static int tx_macro_mclk_enable(struct tx_macro_priv *tx_priv,
 		}
 		bolero_clk_rsc_fs_gen_request(tx_priv->dev,
 					true);
+		regcache_mark_dirty(regmap);
+		regcache_sync_region(regmap,
+				TX_START_OFFSET,
+				TX_MAX_OFFSET);
 		if (tx_priv->tx_mclk_users == 0) {
-			regcache_mark_dirty(regmap);
-			regcache_sync_region(regmap,
-					TX_START_OFFSET,
-					TX_MAX_OFFSET);
 			/* 9.6MHz MCLK, set value 0x00 if other frequency */
 			regmap_update_bits(regmap,
 				BOLERO_CDC_TX_TOP_CSR_FREQ_MCLK, 0x01, 0x01);
@@ -500,6 +505,9 @@ static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 				hpf_cut_off_freq << 5);
 		snd_soc_component_update_bits(component, hpf_gate_reg,
 						0x03, 0x02);
+#ifdef OEM_TARGET_PRODUCT_EBBA
+		usleep_range(50, 55);
+#endif
 		/* Add delay between toggle hpf gate based on sample rate */
 		switch(tx_priv->amic_sample_rate) {
 		case 8000:
